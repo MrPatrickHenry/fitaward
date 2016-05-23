@@ -1,0 +1,84 @@
+<?php
+
+//Get Health kit Values from URL
+$rate= $_GET["Offer_Name"]; /* value from Health kit? */
+$Type= $_GET["Type"]; /*value from Health kit?*/
+$id= $_GET["faid"];
+
+//stop user hitting same goal getting same offer
+$lazy_bugger_check = mysql_query("SELECT `achieved` FROM `User_profile` WHERE `id` ='$id' and `achieved` = 1 group by `id`  ");
+$lbc = mysql_fetch_row($lazy_bugger_check);
+$lazy_bugger = $lbc[0]; // 42
+echo $lazy_bugger;
+if ($lazy_bugger === 1){
+    echo "Lazy git try harder";
+        exit; 
+}
+
+
+
+
+
+//Check if the user hit their goal and return true or not
+
+$check = mysql_query("SELECT `Goal_1`,`Goal_1_rate`,`FitAward_ID` FROM `User_profile` WHERE `id` = '$id'");
+$c_rows = mysql_fetch_row($check);
+$activity = $c_rows[0]; // 42
+$Target = $c_rows[1]; // steps
+$FitAwardID = $c_rows[2]; // id#
+
+
+if ($rate >= $Target){
+    
+$ChickenDinner = 1;
+//update the achieved column and move d ata to milestones
+$update = mysql_query("UPDATE `User_profile` SET `achieved`=1 WHERE `id` = '$id' "); //triggers data move
+if (!$update) {
+    echo 'Could not run query: ' . mysql_error();
+    exit;
+}
+
+
+$Get_offer = mysql_query(" SELECT `id`,`link`,`Advertiser_Name`,`Offer_Name`,`Offer_rate` FROM `Offers` WHERE `Offer_Name` <= $rate ");
+if (!$Get_offer) {
+    echo 'Could not run query: ' . mysql_error();
+    exit;
+}
+//copy offer number in to milestones
+$milestone = mysql_fetch_row($Get_offer);
+$OID = $milestone[0]; // 42
+
+$milestone_offer = mysql_query("UPDATE `milestones` SET `Offer_Name`= $OID WHERE `id` = '$id' and `Updated` = CURDATE()");
+}
+else {
+$ChickenDinner = 0;
+}
+
+//sync complete show response for new offer for notification
+
+$SyncCompleted = mysql_query("SELECT `link`,`Advertiser_Name`,`Offer_Name`,`Offer_rate` FROM `Offers` WHERE `Offer_Name` <= $rate limit 0,1");
+
+$D_rows = mysql_fetch_row($SyncCompleted);
+$linkgoal = $D_rows[0]; // 42
+$offerdetails = $D_rows[3]; // 42
+
+$milestone_offer = mysql_query("UPDATE `fitaward_app`.`milestones` SET `link` = '$linkgoal', Offer_Name ='$offerdetails' WHERE `mOID` order by mOID desc limit 1 ; ");
+
+if (!$SyncCompleted) {
+    echo 'Could not run query: ' . mysql_error();
+    exit;
+}
+
+while ($rows = mysql_fetch_array($SyncCompleted, MYSQL_ASSOC)) {
+    $row_array['Advertiser_Name'] = $rows['Advertiser_Name'];
+    $row_array['Offer_rate'] = $rows['Offer_rate'];
+    $row_array['link'] = $rows['link'];
+    array_push($json,$row_array);
+    }
+echo json_encode($json,JSON_NUMERIC_CHECK);
+
+echo "Chicken Dinner?",$ChickenDinner;
+
+
+
+?> 
